@@ -1,0 +1,490 @@
+#single-cell RNA seq analysis
+#Integrated single cell sequencing analysis reveals the origin and the sequential phenotypic drift of cancer-associated fibroblast 
+#Contact: Heechul(Ryan) Chung, M.S. (heechulrchung@gmail.com) & Chang Ohk Sung, M.D., Ph.D. (co.sung@amc.seoul.kr)
+#Asan Center for Cancer Genome Discovery In Collaboration with Dana-Farber Cancer Institute, Asan Medical Center
+#University of Ulsan College of Medicine
+
+##########Do not run the whole lines directly. You might have to modify some codes based on your data#########
+
+setwd("/Users/ryanmachine/")
+library(tidyverse)
+library(Matrix)
+library(Seurat)
+
+#######################################pre-processing of scRNA-seq raw data##############################################
+ovariananno <- read.csv("OvarianCancer/OvC_counts/OvC_metadata.csv.gz")
+ovarian_fib_tumor <- subset(ovariananno, ovariananno$CellFromTumor==TRUE)
+ovarian_fib_normal <- subset(ovariananno, ovariananno$CellFromTumor==FALSE)
+
+feature_ovarian <- paste0("OvarianCancer/OvC_counts/genes.tsv")
+barcodes_ovarian <- paste0("OvarianCancer/OvC_counts/barcodes.tsv")
+ovarian_mat<- paste0("OvarianCancer/OvC_counts/matrix.mtx")
+mat_ovarian <- readMM(file = ovarian_mat)
+
+#Skip below two lines if you don't need to regress out cellcycle.
+s.genes <- cc.genes.updated.2019$s.genes
+g2m.genes <- cc.genes.updated.2019$g2m.genes
+
+ovarian_feature.names = read.delim(feature_ovarian, 
+                                  header = FALSE,
+                                  stringsAsFactors = FALSE)
+ovarian_barcode.names = read.delim(barcodes_ovarian, 
+                                  header = FALSE,
+                                  stringsAsFactors = FALSE)
+colnames(mat_ovarian) = ovarian_barcode.names$V1
+rownames(mat_ovarian) = ovarian_feature.names$V2
+
+mat_ovarian <- mat_ovarian[, !duplicated(colnames(mat_ovarian))] ###Remove duplicated colnames if exist###
+
+mat_ovarian_fib_tumor <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_tumor$Cell]
+mat_ovarian_fib_normal <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_normal$Cell]
+
+
+#****Making tumor fibroblast data - Repeat the same thing with normal fibroblast data too!****#
+mat_seurat <- CreateSeuratObject(counts = mat_ovarian_fib_tumor, project = "Pan_cancer_col", min.cells = 3, min.features = 200)
+#If you don't need percent.mt, then just skip it
+mat_seurat[["percent.mt"]] <- PercentageFeatureSet(mat_seurat, pattern = "^MT-")
+#Subsetting might be changed based on your standards.
+mat_seurat <- subset(mat_seurat, subset = nCount_RNA  > 401 & nFeature_RNA > 201 & nFeature_RNA < 6000 & percent.mt < 25)
+mat_seurat <- NormalizeData(mat_seurat)
+mat_seurat <- FindVariableFeatures(mat_seurat, selection.method = "vst", mean.cutoff = c(0.125, 3), dispersion.cutoff = c(0.5, Inf))
+
+all.genes <- rownames(mat_seurat)
+mat_seurat <- ScaleData(mat_seurat,features = all.genes) 
+
+#Regressing out cellcycle might not be essential to your experiment. 
+#If you don't need it, just skip below two lines and perform RunPCA with mat_seurat
+mat_cellcycle <- CellCycleScoring(mat_seurat, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+mat_regressout <- ScaleData(mat_cellcycle, vars.to.regress = c("S.Score", "G2M.Score", "percent.mt", "orig.ident", "nCount_RNA"), features = all.genes)
+
+mat_pca <- RunPCA(mat_regressout, features = VariableFeatures(object = mat_regressout))
+
+#All numbers below four lines might be changed
+ElbowPlot(mat_pca, 30) 
+mat_nei <- FindNeighbors(mat_pca, dims = 1:13)
+mat_clu <- FindClusters(mat_nei, resolution = c(0.2, 2))
+mat.tsne <- RunTSNE(mat_clu, dims = 1:13, method = 'FIt-SNE')
+
+DimPlot(mat.tsne, reduction = 'tsne') + labs(title = 'Ovarian_Fib_Tumor')
+
+#######################################SingleR & Marker-gene based fibroblast selection #################################
+###############It might be changed if you want other subtypes such as mast cells, T-cells and so on.####################
+
+#Fibrobalst marker genes -> COL1A1, DCN, BGN
+plot1 <- FeaturePlot(mat.tsne, features = "COL1A1")
+col1 <- filter(plot1$data, plot1$data$COL1A1 > 0)
+
+plot2 <- FeaturePlot(mat.tsne, features = "DCN")
+dcn <- filter(plot2$data, plot2$data$DCN > 0)
+
+plot3 <- FeaturePlot(mat.tsne, features = "BGN")
+bgn <- filter(plot3$data, plot3$data$BGN > 0)
+
+ovarian_tfib <- mat_ovarian_fib_tumor[, colnames(mat_ovarian_fib_tumor) %in% c(rownames(col1), rownames(dcn), rownames(bgn))]
+
+####################################################SingleR Annotation####################################################
+library(SingleR)
+library(celldex)
+
+hpca.se <- HumanPrimaryCellAtlasData()
+data_tumor <- NormalizeData(mat_ovarian_fib_tumor)
+
+singler_ovarian_tumor <- SingleR(test = data_tumor, ref = hpca.se, assay.type.test=1,
+                                  labels = hpca.se$label.main)
+singler_ovarian_tfib <- rownames(subset(singler_ovarian_tumor, labels == "Fibroblasts"))
+
+overlap_tumor <- intersect(colnames(ovarian_tfib), singler_ovarian_tfib)
+
+library(VennDiagram)
+venn.plot <- draw.pairwise.venn(length(colnames(ovarian_tfib)), length(singler_ovarian_tfib), 
+                                length(overlap_tumor), c("Original", "SingleR"))
+
+grid.draw(venn.plot)
+require(gridExtra)
+grid.arrange(gTree(children=venn.plot), top="Ovary_Tumor_Fibroblasts")
+
+###############Fibroblast data obtained after pre-processing of scRNA-seq raw data and annotation process##########################
+overlap_ovarian_tfib <- as.data.frame(data_tumor[,colnames(data_tumor) %in% overlap_tumor])
+#Make overlap_ovarian_nfib with the same process!
+
+#wssplot -> to get optimized k-mer value for clustering
+wssplot <- function(tocluster, nc=15, seed=1234){
+  wss <- (nrow(tocluster)-1)*sum(apply(tocluster,2,var))
+  for (i in 2:nc){
+    set.seed(seed)
+    wss[i] <- sum(kmeans(tocluster, centers=i)$withinss)}
+  plot(1:nc, wss, type="b", xlab="Number of Clusters",
+       ylab="Within groups sum of squares")}
+wssplot(t(overlap_ovarian_tfib))
+
+#kmeans clustering with k from wssplot
+ovary_cluster <- kmeans(t(overlap_ovarian_tfib), 4)
+
+#PCA analysis
+#remove all rows with 0s after transpose
+ovary_tfib_without_zeros <- t(overlap_ovarian_tfib)[, colSums(t(overlap_ovarian_tfib) != 0) > 0]
+pca <- prcomp(ovary_tfib_without_zeros, center = T, scale. = T)
+
+pcaplot <- as.data.frame(pca$x)
+temp <- data.frame(matrix(0, ncol = 3, nrow = nrow(pcaplot)))
+rownames(temp) <- rownames(pcaplot)
+temp$X1 <- pcaplot$PC1
+temp$X2 <- pcaplot$PC2
+temp$X3 <- ovary_cluster$cluster
+
+#Clusters combined from kmeans and PCA
+plot(temp$X1, temp$X2, col = unlist(temp$X3) , main="Fibroblast_Clusters (Ovary)",
+     ylab="PC2",
+     xlab="PC1",
+)
+
+
+###############################################Expression of CAF related genes##########################################
+caf.gene <- c("TNC","LOX","LOXL1","TGFB1","VEGFA","PDGFRA","VCAM1","FAP","CAV1","VIM","S100A4")
+ovary.caf.maker = NULL
+for (i in 1:length(caf.gene)){
+  aa = overlap_ovarian_tfib[caf.gene[i],]
+  aa = data.frame(aa)
+  aa = t(aa)
+  aa = data.frame(aa)
+  aa$gene = caf.gene[i]
+  aa$group = ovary_cluster$cluster
+  names(aa) = c("value","gene","group")
+  ovary.caf.maker = rbind(ovary.caf.maker, aa)
+  print (i)
+}
+
+View(ovary.caf.maker)
+ovary.caf.maker$x1 = factor(ovary.caf.maker$gene, 
+                            levels = c("TNC","LOX","LOXL1","TGFB1","VEGFA","PDGFRA","VCAM1","FAP","CAV1","VIM","S100A4"))
+boxplot(value ~ group + x1, data = ovary.caf.maker,
+        at = c(1:4,6:9,11:14,16:19,21:24,26:29,31:34,36:39,41:44,46:49,51:54), col = c("lightseagreen","purple"), 
+        frame = F, outpch=NA, ylim=c(0,5), main = "ovary.caf", las=2 )
+
+#PRRX1 expression across tumor clusters
+boxplot(as.numeric(overlap_ovarian_tfib["PRRX1",]) ~ ovary_cluster$cluster)
+
+##########################Spearman Correlation between tumor clusters and normal clusters################################
+spearman <- matrix(nrow = length(colnames(overlap_ovarian_tfib)), ncol = length(colnames(overlap_ovarian_nfib)))
+for(i in 1:length(colnames(overlap_ovarian_tfib))){
+  for (j in 1:length(colnames(overlap_ovarian_nfib))){
+    spearman[i, j] <- cor.test(overlap_ovarian_tfib[,i], overlap_ovarian_nfib[,j], method = 'spearman')$estimate
+  }
+}
+rownames(spearman) <- colnames(overlap_ovarian_tfib)
+colnames(spearman) <- colnames(overlap_ovarian_nfib)
+
+library(Rfast)
+#spearman <- as.matrix(spearman)
+r1 <- rowMaxs(spearman, value = TRUE)
+r2 <- cbind(1:nrow(spearman), max.col(spearman, 'first'))
+
+col1 <- as.data.frame(rownames(spearman)) #tumor
+col2 <- c()
+for(i in 1:length(rownames(spearman))){
+  col2[i] <- colnames(spearman)[r2[i, 2]]
+}
+col2 <- as.data.frame(col2)
+colsum <- cbind(col1, col2)
+colnames(colsum) <- c("Tumor", "Normal")
+
+tumorcluster <- c()
+normalcluster <- c()
+
+#****caf1, t1, caf2, t4 -> gene expression data divided from overlap_ovarian_tfib****#
+#processed based on the cluster information. It can be changed by your own cluster.
+for(i in 1:length(rownames(spearman))){
+  if(colsum[i, 1] %in% colnames(ovary_caf1)){
+    tumorcluster[i] <- 1
+  }
+  else if(colsum[i, 1] %in% colnames(ovary_t2)){
+    tumorcluster[i] <- 2
+  }
+  else if(colsum[i, 1] %in% colnames(ovary_caf2)){
+    tumorcluster[i] <- 3
+  }
+  else if(colsum[i, 1] %in% colnames(ovary_t4)){
+    tumorcluster[i] <- 4
+  }
+}
+
+#****n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib****#
+#processed based on the cluster information. It can be changed by your own cluster.
+for(i in 1:length(rownames(spearman))){
+  if(colsum[i, 2] %in% colnames(ovary_n1)){
+    normalcluster[i] <- 1
+  }
+  else if(colsum[i, 2] %in% colnames(ovary_n2)){
+    normalcluster[i] <- 2
+  }
+  else if(colsum[i, 2] %in% colnames(ovary_n3)){
+    normalcluster[i] <- 3
+  }
+  else if(colsum[i, 2] %in% colnames(ovary_n4)){
+    normalcluster[i] <- 4
+  }
+}
+
+tumorcluster <- as.data.frame(tumorcluster)
+normalcluster <- as.data.frame(normalcluster)
+colsum <- cbind(colsum, tumorcluster, normalcluster)
+
+####GGalluvial -> To visualize correlation results between CAF and corresponding precursor normal resident fibroblast.###
+library(ggalluvial)
+library(ggplot2)
+
+#Remember! It might be changed based on your clustered data!
+colsum$tumorcluster[colsum$tumorcluster == 2] = "Cluster_2"
+colsum$tumorcluster[colsum$tumorcluster == 1] = "CAF_1"
+colsum$tumorcluster[colsum$tumorcluster == 3] = "CAF_2"
+colsum$tumorcluster[colsum$tumorcluster == 4] = "Cluster_4"
+colsum$normalcluster[colsum$normalcluster == 4] = "Cluster_4"
+colsum$normalcluster[colsum$normalcluster == 3] = "Cluster_3"
+colsum$normalcluster[colsum$normalcluster == 2] = "Cluster_2"
+colsum$normalcluster[colsum$normalcluster == 1] = "Cluster_1"
+
+
+p <- ggplot(colsum, 
+            aes(axis1 = tumorcluster, axis2 = normalcluster))+
+  geom_alluvium(aes(fill = tumorcluster), width = 1/12) +
+  geom_stratum(width = 1/12, fill = "black", color = "grey") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Cluster_Tumor", "Cluster_Normal"), expand = c(.05, .05)) +
+  ggtitle("Correlations between Tumor and Normal clusters of ovarian samples")
+
+a = p + theme(panel.border = element_blank(), axis.line = element_line(colour = "black"),
+              panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
+              plot.background = element_rect(fill = "transparent", color = "white"),
+              panel.background = element_rect(fill = "transparent", color = "white")) 
+
+###From the above, I determined normal cluster 2 as a precursor normal resident fibroblast. Now mark it as ovary_pnrf###
+######****pnrf cluster might be different with your data****#####
+
+##########DEG extraction between CAF and corresponding NRF. If you have more than one CAF, then perform twice!##################
+library(limma)
+
+ovary_label = c()
+ovary_deg_data <- cbind(ovary_pnrf, ovary_CAF1) #ovary_CAF1, ovary_CAF2...
+for (i in 1:ncol(ovary_deg_data)){
+  if(i <= ncol(ovary_pnrf)){
+    ovary_label[i] <- "PNRF"
+  }
+  else{
+    ovary_label[i] <- "CAF1"
+  }
+}
+ovary_label <- as.matrix(ovary_label)
+design <- model.matrix(~0 + ovary_label)
+#Before setting colnames, double-check 'design' to validate the column order! It might be opposite in some case.
+colnames(design) <- c("PNRF", "CAF1")
+
+fit <- lmFit(ovary_deg_data,design)
+cont <- makeContrasts(CAF1-PNRF,levels=design)
+fit.cont <- contrasts.fit(fit,cont)
+fit.cont <- eBayes(fit.cont)
+res <- topTable(fit.cont,number=Inf)
+test <- res %>% filter(adj.P.Val < 0.01)
+
+#Volcanoplot
+library(EnhancedVolcano)
+
+vol <- EnhancedVolcano(test, 
+                       lab = rownames(test),
+                       x = 'logFC',
+                       y = 'adj.P.Val',
+                       FCcutoff = 0.5849625007211562, #log2(1.5) = 0.5849625007211562, Change if you use different FC.
+                       title = "Ovary PNRF vs CAF1")
+
+voldata <- vol$data %>% filter(Sig == "FC_P") ###DEG lists.
+
+#########################Identification of three distinct CAF subtypes -> myCAF, iCAF, apCAF############################
+apcaf <- c("COL1A1", "CD74", "HLA-DRA", "HLA-DPA1", "HLA-DQA1", "SLPI")
+icaf <- c("IL6", "PDGFRA", "CXCL12", "CFD", "DPT", "LMNA", "AGTR1", "HAS1", "CXCL1", "CXCL2", "CCL2") #IL8
+mycaf <- c("ACTA2", "TAGLN", "MMP11", "MYL9", "HOPX", "POSTN", "TPM1", "TPM2")
+
+#Three distince CAF genes expression from CAF1, CAF2
+#You might use boxplot instead of vioplot if you want
+library(vioplot)
+ovary_caf1_ap <- ovary_caf1[apcaf,]
+ovary_caf1_ap_mean <- as.data.frame(apply(ovary_caf1_ap,2,mean))
+ovary_caf2_ap <- ovary_caf2[apcaf,]
+ovary_caf2_ap_mean <- as.data.frame(apply(ovary_caf2_ap, 2, mean))
+
+vioplot(unlist(ovary_caf1_ap_mean), unlist(ovary_caf2_ap_mean), 
+        col = c("royalblue4", "yellow"),  names=c("1", "2"), ylab = "Signature",
+        main="apCAF")
+
+ovary_caf1_i <- ovary_caf1[icaf,]
+ovary_caf1_i_mean <- as.data.frame(apply(ovary_caf1_i,2,mean))
+ovary_caf2_i <- ovary_caf2[icaf,]
+ovary_caf2_i_mean <- as.data.frame(apply(ovary_caf2_i, 2, mean))
+
+vioplot(unlist(ovary_caf1_i_mean), unlist(ovary_caf2_i_mean), 
+        col = c("royalblue4", "yellow"),  names=c("1", "2"),
+        main="iCAF", ylab="Signature")
+
+ovary_caf1_my <- ovary_caf1[mycaf,]
+ovary_caf1_my_mean <- as.data.frame(apply(ovary_caf1_my,2,mean))
+ovary_caf2_my <- ovary_caf2[mycaf,]
+ovary_caf2_my_mean <- as.data.frame(apply(ovary_caf2_my, 2, mean))
+
+vioplot(unlist(ovary_caf1_my_mean), unlist(ovary_caf2_my_mean),
+        col = c("royalblue4", "yellow"),  names=c("1", "2"),
+        main="myCAF", ylab="Signature")
+
+############################################Trajectory analysis with monocle R package###################################
+BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+                       'limma', 'S4Vectors', 'SingleCellExperiment',
+                       'SummarizedExperiment', 'batchelor', 'Matrix.utils'))
+
+biocLite("monocle")
+source("http://bioconductor.org/biocLite.R")
+biocLite()
+library(monocle)
+
+ov_pnrfcaf <- cbind(ov_pnrf, ov_caf1, ov_caf2)
+
+ov_cluster <- data.frame(matrix(NA, nrow = ncol(ov_pnrfcaf), ncol = 4))
+colnames(ov_cluster) <- c("cluster", "origin", "day", "cell_type")
+rownames(ov_cluster) <- colnames(ov_pnrfcaf)
+
+ov_cluster$origin[rownames(ov_cluster) %in% colnames(ov_caf1)] <- "tumor"
+ov_cluster$origin[rownames(ov_cluster) %in% colnames(ov_caf2)] <- "tumor"
+ov_cluster$origin[rownames(ov_cluster) %in% colnames(ov_pnrf)] <- "normal"
+
+ov_cluster$cluster[rownames(ov_cluster) %in% colnames(ov_caf1)] <- 1
+ov_cluster$cell_type[rownames(ov_cluster) %in% colnames(ov_caf1)] <- "CAF1"
+
+ov_cluster$cluster[rownames(ov_cluster) %in% colnames(ov_caf2)] <- 2
+ov_cluster$cell_type[rownames(ov_cluster) %in% colnames(ov_caf2)] <- "CAF2"
+
+ov_cluster$cluster[rownames(ov_cluster) %in% colnames(ov_pnrf)] <- 3
+ov_cluster$cell_type[rownames(ov_cluster) %in% colnames(ov_pnrf)] <- "PNRF"
+
+ov_cluster$day[ov_cluster$origin == "tumor"] <- 1
+ov_cluster$day[ov_cluster$origin == "normal"] <- 0
+
+#ov_pnrfcaf
+HSMM_expr_matrix <- as.matrix(ov_pnrfcaf)
+HSMM_sample_sheet <- ov_cluster
+#HSMM_gene_annotation <- read.delim("gene_metadata_smc.txt", row.names = 1)
+test <- data.frame(matrix(0, nrow = nrow(ov_pnrfcaf), ncol = 2))
+rownames(test) <- rownames(ov_pnrfcaf)
+colnames(test) <- c("biotype", "gene_short_name")
+test$biotype <- "coding"
+test$gene_short_name <- rownames(test)
+HSMM_gene_annotation <- test
+
+rownames(HSMM_gene_annotation) <- rownames(ov_pnrfcaf)
+HSMM_gene_annotation$gene_short_name <- rownames(ov_pnrfcaf)
+
+pd <- new("AnnotatedDataFrame", data = HSMM_sample_sheet)
+fd <- new("AnnotatedDataFrame", data = HSMM_gene_annotation)
+HSMM <- newCellDataSet(as.matrix(HSMM_expr_matrix),
+                       phenoData = pd, featureData = fd)
+
+
+names(HSMM_expr_matrix) == row.names(HSMM_sample_sheet)
+
+HSMM <- estimateSizeFactors(HSMM)
+HSMM <- estimateDispersions(HSMM)
+HSMM <- detectGenes(HSMM, min_expr = 0.1)
+print(head(fData(HSMM)))
+HSMM <- detectGenes(HSMM, min_expr = 0.1)
+print(head(fData(HSMM)))
+expressed_genes <- row.names(subset(fData(HSMM),
+                                    num_cells_expressed >= 10))
+
+diff_test_res <- differentialGeneTest(HSMM[expressed_genes,],fullModelFormulaStr = "~origin")
+ordering_genes <- row.names (subset(diff_test_res, qval < 0.01))
+
+HSMM <- setOrderingFilter(HSMM, ordering_genes)
+plot_ordering_genes(HSMM)
+HSMM_myo <- reduceDimension(HSMM, max_components = 2,
+                            method = 'DDRTree')
+HSMM_myo <- orderCells(HSMM_myo)
+plot_cell_trajectory(HSMM_myo, color_by = "cell_type")
+
+####################################Disease and functional enrichment analysis############################################
+library(clusterProfiler)
+library(DOSE)
+library(org.Hs.eg.db)
+keytypes(org.Hs.eg.db)
+
+#****ov_upgenes and ov_downgenes obtained from DEG analysis result. Upgenes and downgenes are divided based on logFC.****#
+ov_upgenes <- voldata %>% filter(logFC > 0)
+ov_downgenes <- voldata %>% filter(logFC > 0)
+ov_genes <- rbind(ov_upgenes, ov_downgenes)
+
+common <- subset(ov_genes, select = logFC)
+
+t <- rownames(common)
+et <- bitr(t, fromType="SYMBOL", toType= "ENTREZID", OrgDb="org.Hs.eg.db")
+
+edo <- enrichDGN(et$ENTREZID) #DisGeNet
+edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+up <- setNames(unlist(common, use.names=F),rownames(common))
+
+cnetplot(edox, foldChange=up, circular = TRUE, colorEdge = TRUE)
+
+#################################GSVA and clinical significance of CAF signature genes###################################
+library(GSEABase)
+library(Biobase)
+library(genefilter)
+library(limma)
+library(RColorBrewer)
+library(GSVA)
+library(GSVAdata)
+library(dplyr)
+
+setwd("/Users/ryanmachine/")
+#You should download your own TCGA datasets from https://gdac.broadinstitute.org, clinical data from https://www.cbioportal.org/
+tcga_ovary <- read.delim("Downloads/single_cell_material/TCGA_data/ovary/ovary.rna.dat.txt", row.names = 1)
+upgenes <- rownames(ov_upgenes)
+downgenes <- rownames(ov_downgenes)
+
+#########GSVA with significant gene sets (Upregulated genes in CAF, downregulated genes in CAF obtained by DEG analysis)
+upgenes <- list(upgenes)
+downgenes <- list(downgenes)
+gsva_up=gsva(as.matrix(tcga_ovary), upgenes, method="gsva", kcdf="Gaussian", mx.diff=TRUE, verbose=FALSE, parallel.sz=1)
+gsva_df_up=data.frame(t(gsva_up), stringsAsFactors = F, check.names = F)
+
+gsva_down=gsva(as.matrix(tcga_ovary), downgenes, method="gsva", kcdf="Gaussian", mx.diff=TRUE, verbose=FALSE, parallel.sz=1)
+gsva_df_down=data.frame(t(gsva_down), stringsAsFactors = F, check.names = F)
+
+ovary_gsva <- cbind(gsva_df_up, gsva_df_down)
+colnames(ovary_gsva) <- c("Up", "Down")
+
+#Use your own clinical data: I already pre-processed overall survival data of ovary cancer patient's data which is linked to TCGA data
+ovary_overall <- read.csv("Downloads/single_cell_material/TCGA_data/ovary/ov_survival_overall.csv", row.names =1)
+ovary_gsva_ov <- ovary_gsva[row.names(ovary_overall),]
+
+ovary_ov <- data.frame(matrix(0, ncol = 5, nrow = nrow(ovary_gsva_ov)))
+ovary_ov$X1 <- ovary_overall$Overall.Survival..Months.
+ovary_ov$X2 <- ovary_overall$Overall.Survival.Status
+ovary_ov$X3 <- ovary_gsva_ov$Up
+ovary_ov$X4 <- ovary_gsva_ov$Down
+ovary_ov$X5 <- 0
+colnames(ovary_ov) <- c("Overall.Survival..Months.", "Overall.Survival.Status", "Up", "Down", "CAF")
+rownames(ovary_ov) <- rownames(ovary_overall)
+
+#Calculate the median of GSVA score of upregulated genes to separate samples between two groups.
+upmed <- median(ovary_ov$Up)
+
+#######Survival analysis######
+library(survival)
+library(survminer)
+
+g1 <- ovary_ov %>% filter(Up > upmed)
+g2 <- ovary_ov %>% filter(!(Up > upmed))
+ovary_ov$CAF <- 0
+ovary_ov$CAF[rownames(ovary_ov) %in% rownames(g1)] <- 1
+ovary_ov$CAF[rownames(ovary_ov) %in% rownames(g2)] <- 2
+
+ovary_ov$CAF <- factor(ovary_ov$CAF)
+
+fit2 <- survfit(Surv(Overall.Survival..Months., 
+                     as.numeric(Overall.Survival.Status))~CAF, data = ovary_ov)
+ggsurvplot(fit2, legend.title="overall_Survival",
+           conf.int = T, pval = T)
+
