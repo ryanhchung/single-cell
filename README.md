@@ -1,4 +1,4 @@
-# single-cell
+# single-cell RNA sequencing
 
 Running every line at once without any confirmation is not recommended. 
 
