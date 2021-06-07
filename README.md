@@ -1,4 +1,6 @@
 # single-cell
 
-Do not run every lines all at once!
+Running every lines at once is not recommended.
+
+
 
