@@ -522,3 +522,155 @@ fit2 <- survfit(Surv(Overall.Survival..Months.,
 ggsurvplot(fit2, legend.title="overall_Survival",
            conf.int = T, pval = T)
 
+
+########################Validation 1 - Slingshot trajectory analysis################################
+
+###############To perform slingshot, you should use raw count matrix!#########################
+crc2 <- read.delim("Downloads/GSE132465_GEO_processed_CRC_10X_raw_UMI_count_matrix.txt", row.names = 1)
+
+crc2_mscf <- read.csv("GSVA_Fibroblasts/colon/SMC_nfib_cluster2.csv", row.names = 1)
+crc2_rf <- read.csv("GSVA_Fibroblasts/SMC_CRC/Normal/SMC_nfib_cluster1.csv", row.names = 1)
+crc2_noncaf <- read.csv("GSVA_Fibroblasts/SMC_CRC/Tumor/SMC_tfib_cluster2.csv", row.names = 1)
+crc2_caf <- read.csv("GSVA_Fibroblasts/colon/SMC_tfib_cluster1.csv", row.names = 1)
+
+crc2 <- c(colnames(crc2_mscf), colnames(crc2_rf), colnames(crc2_noncaf), colnames(crc2_caf))
+
+sce <- SingleCellExperiment(assays = List(counts = as.matrix(crc2)))
+rm(crc2)
+
+geneFilter <- apply(assays(sce)$counts,1,function(x){
+  sum(x >= 3) >= 10
+})
+sce <- sce[geneFilter, ]
+
+FQnorm <- function(counts){
+  rk <- apply(counts,2,rank,ties.method='min')
+  counts.sort <- apply(counts,2,sort)
+  refdist <- apply(counts.sort,1,median)
+  norm <- apply(rk,2,function(r){ refdist[r] })
+  rownames(norm) <- rownames(counts)
+  return(norm)
+}
+assays(sce)$norm <- FQnorm(assays(sce)$counts)
+
+sce <- sce[,crc2]
+
+pca <- prcomp(t(log1p(assays(sce)$norm)), scale. = FALSE)
+rd1 <- pca$x[,1:2]
+
+plot(rd1, col = rgb(0,0,0,.5), pch=16, asp = 1)
+
+library(uwot)
+rd2 <- uwot::umap(t(log1p(assays(sce)$norm)))
+colnames(rd2) <- c('UMAP1', 'UMAP2')
+
+plot(rd1, col = rgb(0,0,0,.5), pch=16, asp = 1)
+reducedDims(sce) <- SimpleList(PCA = rd1, UMAP = rd2)
+
+library(mclust, quietly = TRUE)
+
+cl1 <- Mclust(rd1)$classification
+colData(sce)$GMM <- cl1
+
+library(RColorBrewer)
+plot(rd1, col = brewer.pal(9,"Set1")[cl1], pch=16, asp = 1)
+
+colData(sce)$kmeans[colnames(sce) %in% colnames(crc2_mscf)] <- 1
+colData(sce)$kmeans[colnames(sce) %in% colnames(crc2_rf)] <- 2
+colData(sce)$kmeans[colnames(sce) %in% colnames(crc2_noncaf)] <- 3
+colData(sce)$kmeans[colnames(sce) %in% colnames(crc2_caf)] <- 4
+cl2 <- colData(sce)$kmeans
+names(cl2) <- rownames(colData(sce))
+
+plot(rd1, col = brewer.pal(9,"Set1")[cl2], pch=16, asp = 1)
+
+sce_shot <- slingshot(sce, clusterLabels = "kmeans", reducedDim = "PCA")
+
+library(grDevices)
+colors <- colorRampPalette(brewer.pal(11,'Spectral')[-6])(100)
+plotcol <- colors[cut(sce_shot$slingPseudotime_1, breaks=100)]
+
+plot(reducedDims(sce_shot)$PCA, col = plotcol, pch=16, asp = 1)
+lines(SlingshotDataSet(sce_shot), lwd=2, col='black')
+
+plot(reducedDims(sce_shot)$PCA, col = brewer.pal(9,'Set1')[sce_shot$kmeans], pch=16, asp = 1)
+lines(SlingshotDataSet(sce_shot), lwd=2, type = 'lineages', col = 'black')
+
+lin1 <- getLineages(rd1, cl2, start.clus = '1', end.clus = '4')
+plot(rd1, col = c("yellow", "gray75", "darkgreen", "mediumpurple")[cl2], asp = 1, pch = 16)
+lines(SlingshotDataSet(lin1), lwd = 3, col = 'black', show.constraints = TRUE)
+
+temp <- rd1
+temp <- as.data.frame(temp)
+temp$pseudotime <- sce_shot$slingPseudotime_1
+temp$cluster <- sce_shot$kmeans
+
+#setwd("/Users/ryanmachine/Dropbox/Single_cell/Manuscript/submission/CTM_letter_revision1/slingshot/")
+#write.csv(temp, "crc2_data.csv")
+#setwd("/Users/ryanmachine/")
+a <- ggplot(temp, aes(x = pseudotime, y = PC1)) + geom_point(colour = c("yellow", "gray75", "darkgreen", "mediumpurple")[temp$cluster])
+a = a + theme(panel.border = element_blank(), axis.line = element_line(colour = "black"),
+              panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
+              plot.background = element_rect(fill = "transparent", color = "white"),
+              panel.background = element_rect(fill = "transparent", color = "white")) 
+
+
+###############################Validation 2 - RNA velocity ######################################
+library(SeuratDisk)
+library(SeuratWrappers)
+library(velocyto.R)
+
+####You need loom format files generated from CellRanger and velocyto programs using fastqs to perform RNA velocity########
+setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
+filepath <- "//home/miruware/data/ryanchung/jupyter_codes/velocity/CRC/"
+files <- list.files(filepath, pattern=".loom")
+
+mscf <- read.csv("pancrc_nfib_cluster1.csv", row.names = 1)
+caf1 <- read.csv("crc1_caf_subgroup1.csv", row.names = 1)
+caf2 <- read.csv("crc1_caf_subgroup2.csv", row.names = 1)
+
+caf <- c(colnames(mscf), colnames(caf1), colnames(caf2))
+
+setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/CRC/")
+i<- 1
+for (file in files){
+  test <- ReadVelocity(file = file)
+  assign(paste0("CRC_", i), as.Seurat(test))
+  i <- i+1
+}
+
+bm <- merge(x = CRC_1, y = c(CRC_2, CRC_3, CRC_4, CRC_5, CRC_6, CRC_7, CRC_8, CRC_9, CRC_10, CRC_11, CRC_12, CRC_13, 
+                             CRC_14,CRC_15, CRC_16, CRC_17, CRC_18, CRC_19, CRC_20, CRC_21, CRC_22, CRC_23, CRC_24, 
+                             CRC_25, CRC_26, CRC_27), merge.data = TRUE)
+
+temp <- colnames(bm)
+temp2 <- gsub(temp, pattern = "hg19:", replace = "")
+temp2 <- gsub(temp2, pattern = "x", replace = "")
+bm <- RenameCells(bm, new.names = temp2)
+
+
+bm[['RNA']] <- bm[['spliced']]
+bm[['percent.mt']] <- PercentageFeatureSet(bm, pattern = "^MT-")
+bm_msc <- subset(bm, subset = nCount_spliced > 401 & nFeature_spliced > 201 & nFeature_spliced < 6000 & percent.mt < 25)
+#bm_msc <- bm_msc[,caf] <- If you only want to investigate the velocity of mscf, caf1, caf2 
+bm_msc <- SCTransform(object = bm_msc)
+bm_msc <- RunPCA(object = bm_msc, verbose = FALSE)
+bm_msc <- RunUMAP(bm_msc, dims = 1:20)
+bm_msc <- FindNeighbors(object = bm_msc, dims = 1:20)
+bm_msc <- FindClusters(object = bm_msc)
+
+
+temp <- bm_msc
+temp$seurat_clusters <- as.character(temp$seurat_clusters)
+temp$seurat_clusters[colnames(temp) %in% colnames(mscf)] <- "tr-MSCF"
+temp$seurat_clusters[colnames(temp) %in% colnames(caf1)] <- "iCAF"
+temp$seurat_clusters[colnames(temp) %in% colnames(caf2)] <- "myCAF"
+
+
+setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
+DefaultAssay(temp) <- "RNA"
+SaveH5Seurat(temp, filename = "Pan.h5Seurat")
+Convert("Pan.h5Seurat", dest = "h5ad")
+
+#Next step using python -> just copy and paste codes "In Python" right here!
+#http://htmlpreview.github.io/?https://github.com/satijalab/seurat-wrappers/blob/master/docs/scvelo.html
