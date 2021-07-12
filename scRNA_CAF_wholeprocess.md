@@ -254,8 +254,7 @@ for(i in 1:length(rownames(spearman))){
   }
 }
 ```
-n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib
-processed based on the cluster information. It can be changed by your own cluster.
+n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib base on the cluster information. It can be changed by your own cluster.
 
 ```r
 for(i in 1:length(rownames(spearman))){
