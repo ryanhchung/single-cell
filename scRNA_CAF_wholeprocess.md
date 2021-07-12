@@ -649,7 +649,7 @@ a = a + theme(panel.border = element_blank(), axis.line = element_line(colour = 
 library(SeuratDisk)
 library(SeuratWrappers)
 ```
-You need **loom** format files generated from CellRanger and velocyto programs using fastqs to perform RNA velocity
+You need **loom** format files generated from **CellRanger** and **velocyto** using **FASTQ** files to perform RNA velocity
 ``` r
 setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
 filepath <- "//home/miruware/data/ryanchung/jupyter_codes/velocity/CRC/"
