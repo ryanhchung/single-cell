@@ -305,7 +305,8 @@ a = p + theme(panel.border = element_blank(), axis.line = element_line(colour = 
               panel.background = element_rect(fill = "transparent", color = "white")) 
 ```
 
-From the above, I determined normal cluster 2 as a precursor normal resident fibroblast **(tr-MSCF)**. Now mark it as **ovary_pnrf**
+From the above, I determined normal cluster 2 as a precursor normal resident fibroblast **(tr-MSCF)**. Now mark it as **ovary_pnrf**.
+
 pnrf cluster might be different with your data
 
 ### DEG extraction between CAF and corresponding NRF. If you have more than one CAF, then perform twice!
