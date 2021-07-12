@@ -18,7 +18,7 @@ library(Seurat)
 ### Or, If you have a merged raw matrix, then skip this part and go to pre-processing part
 
 The main paths to use your 10x runs should be the parent path of your file.
-For example, my paths were like this : (ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz).
+For example, my path looks like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.gz" (barcode.tsv.gz, features.tsv.gz, matrix.mtx.gz)
 Therefore, My parent path is **ovarymatrix**
 ``` r
 ovarypath <- "ovarymatrix"
@@ -108,9 +108,9 @@ mat.tsne <- RunTSNE(mat_clu, dims = 1:13, method = 'FIt-SNE')
 DimPlot(mat.tsne, reduction = 'tsne') + labs(title = 'Ovarian_Fib_Tumor')
 ```
 
-#######################################SingleR & Marker-gene based fibroblast selection #################################
-###############It might be changed if you want other subtypes such as mast cells, T-cells and so on.####################
-
+### SingleR & Marker-gene based fibroblast selection 
+It might be changed if you want other subtypes such as mast cells, T-cells, etc.
+``` r
 #Fibrobalst marker genes -> COL1A1, DCN, BGN
 plot1 <- FeaturePlot(mat.tsne, features = "COL1A1")
 col1 <- filter(plot1$data, plot1$data$COL1A1 > 0)
@@ -123,7 +123,6 @@ bgn <- filter(plot3$data, plot3$data$BGN > 0)
 
 ovarian_tfib <- mat_ovarian_fib_tumor[, colnames(mat_ovarian_fib_tumor) %in% c(rownames(col1), rownames(dcn), rownames(bgn))]
 
-####################################################SingleR Annotation####################################################
 library(SingleR)
 library(celldex)
 
@@ -143,8 +142,11 @@ venn.plot <- draw.pairwise.venn(length(colnames(ovarian_tfib)), length(singler_o
 grid.draw(venn.plot)
 require(gridExtra)
 grid.arrange(gTree(children=venn.plot), top="Ovary_Tumor_Fibroblasts")
+```
 
-###############Fibroblast data obtained after pre-processing of scRNA-seq raw data and annotation process##########################
+
+### Fibroblast data obtained after pre-processing of scRNA-seq raw data and annotation process
+``` r
 overlap_ovarian_tfib <- as.data.frame(data_tumor[,colnames(data_tumor) %in% overlap_tumor])
 #Make overlap_ovarian_nfib with the same process!
 
@@ -178,9 +180,10 @@ plot(temp$X1, temp$X2, col = unlist(temp$X3) , main="Fibroblast_Clusters (Ovary)
      ylab="PC2",
      xlab="PC1",
 )
+```
 
-
-###############################################Expression of CAF related genes##########################################
+### Expression of CAF related genes
+``` r
 caf.gene <- c("TNC","LOX","LOXL1","TGFB1","VEGFA","PDGFRA","VCAM1","FAP","CAV1","VIM","S100A4")
 ovary.caf.maker = NULL
 for (i in 1:length(caf.gene)){
@@ -204,8 +207,10 @@ boxplot(value ~ group + x1, data = ovary.caf.maker,
 
 #PRRX1 expression across tumor clusters
 boxplot(as.numeric(overlap_ovarian_tfib["PRRX1",]) ~ ovary_cluster$cluster)
+```
 
-##########################Spearman Correlation between tumor clusters and normal clusters################################
+### Spearman Correlation between tumor clusters and normal clusters
+``` r
 spearman <- matrix(nrow = length(colnames(overlap_ovarian_tfib)), ncol = length(colnames(overlap_ovarian_nfib)))
 for(i in 1:length(colnames(overlap_ovarian_tfib))){
   for (j in 1:length(colnames(overlap_ovarian_nfib))){
@@ -232,7 +237,7 @@ colnames(colsum) <- c("Tumor", "Normal")
 tumorcluster <- c()
 normalcluster <- c()
 
-#****caf1, t1, caf2, t4 -> gene expression data divided from overlap_ovarian_tfib****#
+# ****caf1, t1, caf2, t4 -> gene expression data divided from overlap_ovarian_tfib****#
 #processed based on the cluster information. It can be changed by your own cluster.
 for(i in 1:length(rownames(spearman))){
   if(colsum[i, 1] %in% colnames(ovary_caf1)){
@@ -248,9 +253,11 @@ for(i in 1:length(rownames(spearman))){
     tumorcluster[i] <- 4
   }
 }
+```
+n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib
+processed based on the cluster information. It can be changed by your own cluster.
 
-#****n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib****#
-#processed based on the cluster information. It can be changed by your own cluster.
+```r
 for(i in 1:length(rownames(spearman))){
   if(colsum[i, 2] %in% colnames(ovary_n1)){
     normalcluster[i] <- 1
@@ -297,11 +304,13 @@ a = p + theme(panel.border = element_blank(), axis.line = element_line(colour = 
               panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
               plot.background = element_rect(fill = "transparent", color = "white"),
               panel.background = element_rect(fill = "transparent", color = "white")) 
+```
 
-###From the above, I determined normal cluster 2 as a precursor normal resident fibroblast. Now mark it as ovary_pnrf###
-######****pnrf cluster might be different with your data****#####
+From the above, I determined normal cluster 2 as a precursor normal resident fibroblast **(tr-MSCF)**. Now mark it as **ovary_pnrf**
+pnrf cluster might be different with your data
 
-##########DEG extraction between CAF and corresponding NRF. If you have more than one CAF, then perform twice!##################
+### DEG extraction between CAF and corresponding NRF. If you have more than one CAF, then perform twice!
+``` r
 library(limma)
 
 ovary_label = c()
@@ -337,8 +346,10 @@ vol <- EnhancedVolcano(test,
                        title = "Ovary PNRF vs CAF1")
 
 voldata <- vol$data %>% filter(Sig == "FC_P") ###DEG lists.
+```
 
-#########################Identification of three distinct CAF subtypes -> myCAF, iCAF, apCAF############################
+### Identification of three distinct CAF subtypes -> myCAF, iCAF, apCAF
+``` r
 apcaf <- c("COL1A1", "CD74", "HLA-DRA", "HLA-DPA1", "HLA-DQA1", "SLPI")
 icaf <- c("IL6", "PDGFRA", "CXCL12", "CFD", "DPT", "LMNA", "AGTR1", "HAS1", "CXCL1", "CXCL2", "CCL2") #IL8
 mycaf <- c("ACTA2", "TAGLN", "MMP11", "MYL9", "HOPX", "POSTN", "TPM1", "TPM2")
@@ -372,8 +383,10 @@ ovary_caf2_my_mean <- as.data.frame(apply(ovary_caf2_my, 2, mean))
 vioplot(unlist(ovary_caf1_my_mean), unlist(ovary_caf2_my_mean),
         col = c("royalblue4", "yellow"),  names=c("1", "2"),
         main="myCAF", ylab="Signature")
+```
 
-############################################Trajectory analysis with monocle R package###################################
+### Trajectory analysis with monocle R package
+``` r
 BiocManager::install(c('BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
                        'limma', 'S4Vectors', 'SingleCellExperiment',
                        'SummarizedExperiment', 'batchelor', 'Matrix.utils'))
@@ -445,14 +458,17 @@ HSMM_myo <- reduceDimension(HSMM, max_components = 2,
                             method = 'DDRTree')
 HSMM_myo <- orderCells(HSMM_myo)
 plot_cell_trajectory(HSMM_myo, color_by = "cell_type")
+```
 
-####################################Disease and functional enrichment analysis############################################
+### Disease and functional enrichment analysis
+``` r
 library(clusterProfiler)
 library(DOSE)
 library(org.Hs.eg.db)
 keytypes(org.Hs.eg.db)
-
-#****ov_upgenes and ov_downgenes obtained from DEG analysis result. Upgenes and downgenes are divided based on logFC.****#
+``` 
+Use ov_upgenes and ov_downgenes obtained from DEG analysis. Upgenes and downgenes are divided based on logFC.
+``` r
 ov_upgenes <- voldata %>% filter(logFC > 0)
 ov_downgenes <- voldata %>% filter(logFC > 0)
 ov_genes <- rbind(ov_upgenes, ov_downgenes)
@@ -467,8 +483,10 @@ edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
 up <- setNames(unlist(common, use.names=F),rownames(common))
 
 cnetplot(edox, foldChange=up, circular = TRUE, colorEdge = TRUE)
+```
 
-#################################GSVA and clinical significance of CAF signature genes###################################
+### GSVA and clinical significance of CAF signature genes
+```r
 library(GSEABase)
 library(Biobase)
 library(genefilter)
@@ -508,14 +526,18 @@ ovary_ov$X4 <- ovary_gsva_ov$Down
 ovary_ov$X5 <- 0
 colnames(ovary_ov) <- c("Overall.Survival..Months.", "Overall.Survival.Status", "Up", "Down", "CAF")
 rownames(ovary_ov) <- rownames(ovary_overall)
+```
 
-#Calculate the median of GSVA score of upregulated genes to separate samples between two groups.
-upmed <- median(ovary_ov$Up)
 
-#######Survival analysis######
+
+Survival analysis
+```r
 library(survival)
 library(survminer)
-
+```
+Calculate the median of GSVA score of upregulated genes to separate samples between two groups.
+```r
+upmed <- median(ovary_ov$Up)
 g1 <- ovary_ov %>% filter(Up > upmed)
 g2 <- ovary_ov %>% filter(!(Up > upmed))
 ovary_ov$CAF <- 0
@@ -528,11 +550,11 @@ fit2 <- survfit(Surv(Overall.Survival..Months.,
                      as.numeric(Overall.Survival.Status))~CAF, data = ovary_ov)
 ggsurvplot(fit2, legend.title="overall_Survival",
            conf.int = T, pval = T)
+```
 
-
-########################Validation 1 - Slingshot trajectory analysis################################
-
-###############To perform slingshot, you should use raw count matrix!#########################
+### Validation 1 - Slingshot trajectory analysis
+To perform slingshot, you should use **raw count matrix**!
+``` r
 library(slingShot)
 crc2 <- read.delim("Downloads/GSE132465_GEO_processed_CRC_10X_raw_UMI_count_matrix.txt", row.names = 1)
 
@@ -621,9 +643,10 @@ a = a + theme(panel.border = element_blank(), axis.line = element_line(colour = 
               panel.grid.major = element_blank(),panel.grid.minor = element_blank(),
               plot.background = element_rect(fill = "transparent", color = "white"),
               panel.background = element_rect(fill = "transparent", color = "white")) 
+```
 
-
-###############################Validation 2 - RNA velocity ######################################
+### Validation 2 - RNA velocity
+``` r
 library(SeuratDisk)
 library(SeuratWrappers)
 
@@ -678,6 +701,6 @@ setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
 DefaultAssay(temp) <- "RNA"
 SaveH5Seurat(temp, filename = "Pan.h5Seurat")
 Convert("Pan.h5Seurat", dest = "h5ad")
-
-#Next step using python -> just copy and paste codes "In Python" right here!
-#http://htmlpreview.github.io/?https://github.com/satijalab/seurat-wrappers/blob/master/docs/scvelo.html
+```
+### Next step using python -> just copy and paste codes "In Python" right here!
+### http://htmlpreview.github.io/?https://github.com/satijalab/seurat-wrappers/blob/master/docs/scvelo.html
