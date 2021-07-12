@@ -526,6 +526,7 @@ ggsurvplot(fit2, legend.title="overall_Survival",
 ########################Validation 1 - Slingshot trajectory analysis################################
 
 ###############To perform slingshot, you should use raw count matrix!#########################
+library(slingShot)
 crc2 <- read.delim("Downloads/GSE132465_GEO_processed_CRC_10X_raw_UMI_count_matrix.txt", row.names = 1)
 
 crc2_mscf <- read.csv("GSVA_Fibroblasts/colon/SMC_nfib_cluster2.csv", row.names = 1)
@@ -618,7 +619,6 @@ a = a + theme(panel.border = element_blank(), axis.line = element_line(colour = 
 ###############################Validation 2 - RNA velocity ######################################
 library(SeuratDisk)
 library(SeuratWrappers)
-library(velocyto.R)
 
 ####You need loom format files generated from CellRanger and velocyto programs using fastqs to perform RNA velocity########
 setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
