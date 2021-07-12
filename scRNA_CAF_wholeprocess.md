@@ -47,7 +47,7 @@ mat_ovarian <- merge(ovary_1, y=c(ovary_2, ovary_3, ovary_4, ovary_5, ovary_6, o
                                      "ovary17-T", "ovary18-T", "ovary19-T", "ovary20-T", "ovary21-T", "ovary22-T", "ovary23-T", "ovary24-T", "ovary25-T"),
                     project = "ovary")
 ```
-### Preparing scRNA-seq raw data (If you already have a merged matrix)
+### Load scRNA-seq merged matrix
 
 ``` r
 ovariananno <- read.csv("OvarianCancer/OvC_counts/OvC_metadata.csv.gz")
