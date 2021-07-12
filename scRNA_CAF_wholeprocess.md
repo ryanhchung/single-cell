@@ -17,8 +17,8 @@ library(Seurat)
 ### If you don't have a merged raw matrix, then follow this procedure first to merge all 10X runs
 ### Or, If you have a merged raw matrix, then skip this part and go to pre-processing part
 
-It should be the parent path of your file.
-For example, my paths were like this : (ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz) and (ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz)
+The main paths to use your 10x runs should be the parent path of your file.
+For example, my paths were like this : (ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz).
 Therefore, My parent path is **ovarymatrix**
 ``` r
 ovarypath <- "ovarymatrix"
