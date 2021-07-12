@@ -6,13 +6,12 @@ Asan Center for Cancer Genome Discovery In Collaboration with Dana-Farber Cancer
 
 University of Ulsan College of Medicine
 
-
-##########Do not run the whole lines directly. You might have to modify some codes based on your data#########
-
+``` r
 setwd("/Users/ryanmachine/")
 library(tidyverse)
 library(Matrix)
 library(Seurat)
+```
 
 
 ###################If you don't have combined raw matrix, then follow this procedure first to merge all 10X runs############################
