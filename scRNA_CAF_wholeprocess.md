@@ -18,8 +18,9 @@ library(Seurat)
 ### Or, If you have merged raw matrix, then skip this part and go to pre-processing part
 
 It should be the parent path of your file.
-For example, my paths were like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz", "ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz"
-Therefore, My parent path is ovarymatrix
+For example, my paths were like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz", 
+"ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz"
+Therefore, My parent path is **ovarymatrix**
 ``` r
 ovarypath <- "ovarymatrix"
 
@@ -79,7 +80,8 @@ mat_ovarian_fib_normal <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_no
 ```
 
 ### Pre-processing scRNA-seq raw data
-#****Making tumor fibroblast data - Repeat the same thing with normal fibroblast data too!****#
+Making tumor fibroblast data - Repeat the same thing with normal fibroblast data too!
+``` r
 mat_seurat <- CreateSeuratObject(counts = mat_ovarian_fib_tumor, project = "Pan_cancer_col", min.cells = 3, min.features = 200)
 #If you don't need percent.mt, then just skip it
 mat_seurat[["percent.mt"]] <- PercentageFeatureSet(mat_seurat, pattern = "^MT-")
@@ -105,6 +107,7 @@ mat_clu <- FindClusters(mat_nei, resolution = c(0.2, 2))
 mat.tsne <- RunTSNE(mat_clu, dims = 1:13, method = 'FIt-SNE')
 
 DimPlot(mat.tsne, reduction = 'tsne') + labs(title = 'Ovarian_Fib_Tumor')
+```
 
 #######################################SingleR & Marker-gene based fibroblast selection #################################
 ###############It might be changed if you want other subtypes such as mast cells, T-cells and so on.####################
