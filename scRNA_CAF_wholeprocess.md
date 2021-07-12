@@ -78,7 +78,7 @@ mat_ovarian_fib_tumor <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_tum
 mat_ovarian_fib_normal <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_normal$Cell]
 ```
 
-### Pre-processing scRNA-seq raw data
+### Pre-processing of scRNA-seq raw data
 Making tumor fibroblast data - Repeat the same thing with normal fibroblast data too!
 ``` r
 mat_seurat <- CreateSeuratObject(counts = mat_ovarian_fib_tumor, project = "Pan_cancer_col", min.cells = 3, min.features = 200)
