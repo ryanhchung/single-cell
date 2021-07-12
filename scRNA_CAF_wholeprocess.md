@@ -14,13 +14,13 @@ library(Seurat)
 ```
 
 
-###################If you don't have combined raw matrix, then follow this procedure first to merge all 10X runs############################
-###################If you have merged raw matrix, then skip this part and go to pre-processing part##########################
+### If you don't have combined raw matrix, then follow this procedure first to merge all 10X runs
+### Or, If you have merged raw matrix, then skip this part and go to pre-processing part
 
-
-#It should be the parent path of your file.
-#For example, my paths were like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz", "ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz"
-#Therefore, My parent path is ovarymatrix
+It should be the parent path of your file.
+For example, my paths were like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz", "ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz"
+Therefore, My parent path is ovarymatrix
+``` r
 ovarypath <- "ovarymatrix"
 
 #Subfolder1 is just used to obtain Subfolder2
@@ -46,7 +46,7 @@ mat_ovarian <- merge(ovary_1, y=c(ovary_2, ovary_3, ovary_4, ovary_5, ovary_6, o
                                      "ovary08-T", "ovary09-N", "ovary09-T", "ovary10-N", "ovary10-T", "ovary11-T", "ovary14-T", "ovary15-T", "ovary16-T",
                                      "ovary17-T", "ovary18-T", "ovary19-T", "ovary20-T", "ovary21-T", "ovary22-T", "ovary23-T", "ovary24-T", "ovary25-T"),
                     project = "ovary")
-
+```
 ######################################‹#####Preparing scRNA-seq raw data##############################################
 ovariananno <- read.csv("OvarianCancer/OvC_counts/OvC_metadata.csv.gz")
 ovarian_fib_tumor <- subset(ovariananno, ovariananno$CellFromTumor==TRUE)
