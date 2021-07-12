@@ -14,7 +14,7 @@ library(Seurat)
 ```
 
 
-### If you don't have combined raw matrix, then follow this procedure first to merge all 10X runs
+### If you don't have a merged raw matrix, then follow this procedure first to merge all 10X runs
 ### Or, If you have merged raw matrix, then skip this part and go to pre-processing part
 
 It should be the parent path of your file.
@@ -47,7 +47,9 @@ mat_ovarian <- merge(ovary_1, y=c(ovary_2, ovary_3, ovary_4, ovary_5, ovary_6, o
                                      "ovary17-T", "ovary18-T", "ovary19-T", "ovary20-T", "ovary21-T", "ovary22-T", "ovary23-T", "ovary24-T", "ovary25-T"),
                     project = "ovary")
 ```
-######################################‹#####Preparing scRNA-seq raw data##############################################
+### Preparing scRNA-seq raw data
+
+``` r
 ovariananno <- read.csv("OvarianCancer/OvC_counts/OvC_metadata.csv.gz")
 ovarian_fib_tumor <- subset(ovariananno, ovariananno$CellFromTumor==TRUE)
 ovarian_fib_normal <- subset(ovariananno, ovariananno$CellFromTumor==FALSE)
@@ -74,8 +76,9 @@ mat_ovarian <- mat_ovarian[, !duplicated(colnames(mat_ovarian))] ###Remove dupli
 
 mat_ovarian_fib_tumor <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_tumor$Cell]
 mat_ovarian_fib_normal <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_normal$Cell]
+```
 
-#######################################Pre-processing scRNA-seq raw data##############################################
+### Pre-processing scRNA-seq raw data
 #****Making tumor fibroblast data - Repeat the same thing with normal fibroblast data too!****#
 mat_seurat <- CreateSeuratObject(counts = mat_ovarian_fib_tumor, project = "Pan_cancer_col", min.cells = 3, min.features = 200)
 #If you don't need percent.mt, then just skip it
