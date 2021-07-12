@@ -15,8 +15,7 @@ library(Seurat)
 
 
 ### If you don't have a merged raw matrix, then follow this procedure first to merge all 10X runs
-### Or, If you have a merged raw matrix, then skip this part and go to pre-processing part
-
+### Or, If you have a merged raw matrix, then go to the next part and load your merged raw matrix
 The main paths to use your 10x runs should be the parent path of your file.
 For example, my path looks like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.gz" (barcode.tsv.gz, features.tsv.gz, matrix.mtx.gz)
 Therefore, My parent path is **ovarymatrix**
