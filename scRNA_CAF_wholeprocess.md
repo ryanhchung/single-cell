@@ -1,8 +1,9 @@
-# single-cell RNA seq analysis
 # Integrated single-cell RNA sequencing analyses suggest developmental paths of cancer-associated fibroblasts with gene expression dynamics
-# Contact: Heechul(Ryan) Chung, M.S. (heechulrchung@gmail.com) & Chang Ohk Sung, M.D., Ph.D. (co.sung@amc.seoul.kr)
-# Asan Center for Cancer Genome Discovery In Collaboration with Dana-Farber Cancer Institute, Asan Medical Center
-# University of Ulsan College of Medicine
+================
+Authors : Heechul(Ryan) Chung, M.S. (heechulrchung@gmail.com) & Chang Ohk Sung, M.D., Ph.D. (co.sung@amc.seoul.kr)
+Asan Center for Cancer Genome Discovery In Collaboration with Dana-Farber Cancer Institute, Asan Medical Center
+University of Ulsan College of Medicine
+
 
 ##########Do not run the whole lines directly. You might have to modify some codes based on your data#########
 
