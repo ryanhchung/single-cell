@@ -18,7 +18,7 @@ library(Seurat)
 ### Or, If you have a merged raw matrix, then skip this part and go to pre-processing part
 
 It should be the parent path of your file.
-For example, my paths were like this : "ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz" or "ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz"
+For example, my paths were like this : (ovarymatrix/ovary1-T/filtered_feature_bc_matrix/~.tsv.gz) and (ovarymatrix/ovary1-N/filtered_feature_bc_matrix/~.tsv.gz)
 Therefore, My parent path is **ovarymatrix**
 ``` r
 ovarypath <- "ovarymatrix"
