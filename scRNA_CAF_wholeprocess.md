@@ -332,13 +332,12 @@ cont <- makeContrasts(CAF1-PNRF,levels=design)
 fit.cont <- contrasts.fit(fit,cont)
 fit.cont <- eBayes(fit.cont)
 res <- topTable(fit.cont,number=Inf)
-test <- res %>% filter(adj.P.Val < 0.01)
 
 #Volcanoplot
 library(EnhancedVolcano)
 
-vol <- EnhancedVolcano(test, 
-                       lab = rownames(test),
+vol <- EnhancedVolcano(res, 
+                       lab = rownames(res),
                        x = 'logFC',
                        y = 'adj.P.Val',
                        FCcutoff = 0.5849625007211562, #log2(1.5) = 0.5849625007211562, Change if you use different FC.
