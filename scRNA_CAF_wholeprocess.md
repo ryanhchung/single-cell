@@ -324,7 +324,7 @@ for (i in 1:ncol(ovary_deg_data)){
 }
 ovary_label <- as.matrix(ovary_label)
 design <- model.matrix(~0 + ovary_label)
-#Before setting colnames, double-check 'design' to validate the column order! It might be opposite in some case.
+#Before setting colnames, double-check 'design' to validate the column order! It might be opposite in some cases.
 colnames(design) <- c("PNRF", "CAF1")
 
 fit <- lmFit(ovary_deg_data,design)
