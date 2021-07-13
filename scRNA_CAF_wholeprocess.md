@@ -310,7 +310,7 @@ From the above, I determined normal cluster 2 as a precursor normal resident fib
 
 pnrf cluster might be different with your data
 
-### DEG extraction between CAF and corresponding NRF. If you have more than one CAF, then perform twice!
+### DEG extraction between CAF and corresponding tr-MSCF. If you have more than one CAF, then perform twice!
 ``` r
 library(limma)
 
