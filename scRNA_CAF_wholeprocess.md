@@ -72,7 +72,9 @@ colnames(mat_ovarian) = ovarian_barcode.names$V1
 rownames(mat_ovarian) = ovarian_feature.names$V2
 
 mat_ovarian <- mat_ovarian[, !duplicated(colnames(mat_ovarian))] ###Remove duplicated colnames if exist###
-
+```
+Divide by tumor and normal cells
+``` r
 mat_ovarian_fib_tumor <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_tumor$Cell]
 mat_ovarian_fib_normal <- mat_ovarian[,colnames(mat_ovarian) %in% ovarian_fib_normal$Cell]
 ```
