@@ -467,7 +467,7 @@ library(DOSE)
 library(org.Hs.eg.db)
 keytypes(org.Hs.eg.db)
 ``` 
-Use ov_upgenes and ov_downgenes obtained from DEG analysis. Upgenes and downgenes are divided based on logFC.
+Use ov_upgenes and ov_downgenes obtained from DEG analysis. Upgenes and downgenes are divided base on logFC values.
 ``` r
 ov_upgenes <- voldata %>% filter(logFC > 0)
 ov_downgenes <- voldata %>% filter(logFC > 0)
