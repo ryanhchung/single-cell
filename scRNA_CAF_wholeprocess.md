@@ -146,7 +146,7 @@ grid.arrange(gTree(children=venn.plot), top="Ovary_Tumor_Fibroblasts")
 ```
 
 
-### Fibroblast data obtained after pre-processing of scRNA-seq raw data and annotation process
+### Unsupervised k-means clustering of fibroblasts followed by a validation with PCA analysis
 ``` r
 overlap_ovarian_tfib <- as.data.frame(data_tumor[,colnames(data_tumor) %in% overlap_tumor])
 #Make overlap_ovarian_nfib with the same process!
