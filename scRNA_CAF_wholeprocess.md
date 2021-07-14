@@ -702,6 +702,6 @@ setwd("//home/miruware/data/ryanchung/jupyter_codes/velocity/")
 DefaultAssay(temp) <- "RNA"
 SaveH5Seurat(temp, filename = "Pan.h5Seurat")
 Convert("Pan.h5Seurat", dest = "h5ad")
+#"Pan.h5ad"
 ```
-Filename ==
 ### Next step using python -> Go to scVelo.ipynb
