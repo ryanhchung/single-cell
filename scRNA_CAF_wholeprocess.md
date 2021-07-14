@@ -703,5 +703,4 @@ DefaultAssay(temp) <- "RNA"
 SaveH5Seurat(temp, filename = "Pan.h5Seurat")
 Convert("Pan.h5Seurat", dest = "h5ad")
 ```
-### Next step using python -> just copy and paste codes "In Python" right here!
-### http://htmlpreview.github.io/?https://github.com/satijalab/seurat-wrappers/blob/master/docs/scvelo.html
+### Next step using python -> scVelo.ipynb
