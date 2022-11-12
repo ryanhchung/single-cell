@@ -242,16 +242,16 @@ normalcluster <- c()
 #processed based on the cluster information. It can be changed by your own cluster.
 for(i in 1:length(rownames(spearman))){
   if(colsum[i, 1] %in% colnames(ovary_caf1)){
-    tumorcluster[i] <- 1
+    tumorcluster[i] <- "CAF_1"
   }
   else if(colsum[i, 1] %in% colnames(ovary_t2)){
-    tumorcluster[i] <- 2
+    tumorcluster[i] <- "Cluster_2"
   }
   else if(colsum[i, 1] %in% colnames(ovary_caf2)){
-    tumorcluster[i] <- 3
+    tumorcluster[i] <- "CAF_2"
   }
   else if(colsum[i, 1] %in% colnames(ovary_t4)){
-    tumorcluster[i] <- 4
+    tumorcluster[i] <- "Cluster_4"
   }
 }
 ```
@@ -260,16 +260,16 @@ n1, n2, n3, n4 -> gene expression data divided from overlap_ovarian_nfib base on
 ```r
 for(i in 1:length(rownames(spearman))){
   if(colsum[i, 2] %in% colnames(ovary_n1)){
-    normalcluster[i] <- 1
+    normalcluster[i] <- "Cluster_1"
   }
   else if(colsum[i, 2] %in% colnames(ovary_n2)){
-    normalcluster[i] <- 2
+    normalcluster[i] <- "Cluster_2"
   }
   else if(colsum[i, 2] %in% colnames(ovary_n3)){
-    normalcluster[i] <- 3
+    normalcluster[i] <- "Cluster_3"
   }
   else if(colsum[i, 2] %in% colnames(ovary_n4)){
-    normalcluster[i] <- 4
+    normalcluster[i] <- "Cluster_4"
   }
 }
 
@@ -280,16 +280,6 @@ colsum <- cbind(colsum, tumorcluster, normalcluster)
 ####GGalluvial -> To visualize correlation results between CAF and corresponding precursor normal resident fibroblast.###
 library(ggalluvial)
 library(ggplot2)
-
-#Remember! It might be changed based on your clustered data!
-colsum$tumorcluster[colsum$tumorcluster == 2] = "Cluster_2"
-colsum$tumorcluster[colsum$tumorcluster == 1] = "CAF_1"
-colsum$tumorcluster[colsum$tumorcluster == 3] = "CAF_2"
-colsum$tumorcluster[colsum$tumorcluster == 4] = "Cluster_4"
-colsum$normalcluster[colsum$normalcluster == 4] = "Cluster_4"
-colsum$normalcluster[colsum$normalcluster == 3] = "Cluster_3"
-colsum$normalcluster[colsum$normalcluster == 2] = "Cluster_2"
-colsum$normalcluster[colsum$normalcluster == 1] = "Cluster_1"
 
 
 p <- ggplot(colsum, 
